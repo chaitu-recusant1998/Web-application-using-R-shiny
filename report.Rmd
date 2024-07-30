@@ -1,0 +1,229 @@
+---
+output:
+  pdf_document: 
+    keep_tex: yes
+classoption: landscape # setting page orientation to landscape
+latex_engine: pdflatex # latex engine to use
+# adding the necessary latex packages
+header-includes:
+  \usepackage{helvet}
+  \usepackage{longtable}
+  \usepackage{booktabs}
+  \usepackage{colortbl}
+  \renewcommand\familydefault{\sfdefault}
+# defining parameters
+# these parametes needs to be supplied as a named list when calling the render function
+params: 
+  grades: null
+  assesmentComponents: null
+  academicYear: null
+  moduleCode: null
+  moduleTitle: null
+  totalStudents: null
+  totalAbsent: null
+  avgMark: null
+  stdMark: null
+  examSession: null
+  level: null
+  CATSpoints: null
+  moduleCoOrdinator: null
+  semester: null
+---
+<!-- creating a css class named center -->
+<!-- we can use this class to justify contents to center of the page -->
+```{cat, engine.opts = list(file = "style.css")}
+.center {
+  text-align: center;
+}
+```
+
+<!-- setting up code chunk options -->
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE
+  )
+```
+
+\renewcommand{\arraystretch}{2} <!-- increasing the line height -->
+
+<!-- starting by adding the logo first -->
+::: {.center data-latex=""} 
+![](./www/img/Picture1.png)
+:::
+
+<!-- exam report section -->
+::: {.center data-latex=""}
+# Exam Report
+:::
+
+```{r exam-report}
+# creating the exam report data.frame from the values supplied from server
+examReport <- data.frame(
+  var1 = c("Academic Year", "Module Code", "Module Title", "Level"),
+  var2 = c(params$academicYear, params$moduleCode, params$moduleTitle, params$level),
+  var3 = c("Exam Session", "CATS Points", "Module Co-ordinator", "Semester"),
+  var4 = c(params$examSession, params$CATSpoints, params$moduleCoOrdinator, params$semester)
+)
+# rendering the data.frame as a table using the kable() function
+# for stying and formatting table, we use the kable_stying(), column_spec() and row_spec() functions from the kableExtra package
+examReport %>% 
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    longtable = TRUE,
+    linesep = "",
+    align = "l",
+    col.names = NULL
+    ) %>%
+  kable_styling(
+      position = "center",
+      latex_options = c("striped", "repeat_header"),
+      stripe_color = "gray!15"
+    ) %>%
+  column_spec(column = c(1,3), bold = TRUE) %>%
+  row_spec(row = 1:4, font_size = 10)
+```
+
+<!-- assessment components section -->
+::: {.center data-latex=""}
+# Assesment Components
+:::
+
+```{r assesment-components}
+params$assesmentComponents %>%
+  mutate(Percentage = paste0(Percentage, "%")) %>% # adding % symbol to the percent column
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    longtable = TRUE,
+    linesep = "",
+    align = "l"
+    ) %>%
+  kable_styling(
+      position = "center",
+      latex_options = c("striped", "repeat_header"),
+      stripe_color = "gray!15"
+    ) %>%
+  row_spec(row = 1:nrow(params$assesmentComponents), font_size = 10)
+```
+
+<!-- statisitcs table section -->
+::: {.center data-latex=""}
+# Statistics
+:::
+
+```{r statistics}
+# creating the statistics data.frame from the values supplied from server
+statistics <- data.frame(
+  var1 = c("Academic Year", "No of enrolled student", "No of students absent", "Pass", "Fail", "Average module mark", "Standard Deviation"),
+  var2 = c(params$academicYear, params$totalStudents, params$totalAbsent, sum(params$grades$Result == "Passed"), sum(params$grades$Result == "Failed"), params$avgMark, params$stdMark)
+)
+statistics %>%
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    longtable = TRUE,
+    linesep = "",
+    align = "l",
+    col.names = NULL
+    ) %>%
+  kable_styling(
+      position = "center",
+      latex_options = c("striped", "repeat_header"),
+      stripe_color = "gray!15"
+    ) %>%
+  column_spec(column = 1, bold = TRUE) %>%
+  row_spec(row = 1:nrow(statistics), font_size = 10)
+```
+
+<!-- mark distribution chart -->
+::: {.center data-latex=""}
+# Module Mark Distribution
+```{r mark-distribution-plot}
+# creating a frequency table of marks
+# first divide the total marks into 10 classes of equal width
+# then find how many students belong in each class
+frequencyTable <- as.data.frame(table(cut(params$grades$`Grade Input`, seq(0,100,10))))
+# create bar plot from the frequencyTable
+ggplot(data = frequencyTable) +
+  geom_col(mapping = aes(x = Var1, y = Freq), fill = "#164182") +
+  labs(
+    x = NULL,
+    y = NULL
+  ) +
+  theme(
+    panel.background = element_rect(color = "white", fill = "white"),
+    panel.grid.major.y = element_line(color = "grey", size = .7, linetype = "solid"),
+    panel.grid.minor.y = element_line(color = "grey", size = .7, linetype = "solid"),
+    panel.grid.major.x = element_blank(),
+    axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5, size = 14),
+    axis.text.y = element_text(size = 10)
+  )
+```
+:::
+\pagebreak
+
+<!-- passed table -->
+::: {.center data-latex=""}
+# Passed
+:::
+
+```{r table-passed}
+# creating a data.frame with passed students, ordered by marks highest to lowest 
+passed <- params$grades %>%
+  filter(Result == "Passed") %>%
+  arrange(desc(`Grade Input`)) %>%
+  select(`Anon ID`, Name:Result)
+
+# rendering the data.frame as a table using the kable() function
+# for stying and formatting table, we use the kable_stying(), column_spec() and row_spec() functions from the kableExtra package
+passed %>%
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    longtable = TRUE,
+    linesep = "",
+    align = "l"
+    ) %>%
+  kable_styling(
+      position = "center",
+      latex_options = c("striped", "repeat_header"),
+      stripe_color = "gray!15"
+    ) %>%
+  row_spec(row = 0:nrow(passed), font_size = 10) %>%
+  column_spec(column = 1:ncol(passed), width = "5em")
+```
+\pagebreak
+
+<!-- failed table -->
+::: {.center data-latex=""}
+# Failed
+:::
+
+```{r table-failed}
+# creating a data.frame with failed students, ordered by marks lowest to highest
+failed <- params$grades %>%
+  filter(Result == "Failed") %>%
+  arrange(`Grade Input`) %>%
+  select(`Anon ID`, Name:Result)
+
+# rendering the data.frame as a table using the kable() function
+# for stying and formatting table, we use the kable_stying(), column_spec() and row_spec() functions from the kableExtra package
+failed %>%
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    longtable = TRUE,
+    linesep = "",
+    align = "l"
+    ) %>%
+  kable_styling(
+      position = "center",
+      latex_options = c("striped", "repeat_header"),
+      stripe_color = "gray!15"
+    ) %>%
+  row_spec(row = 0:nrow(failed), font_size = 10) %>%
+  column_spec(column = 1:ncol(failed), width = "5em")
+```
